@@ -14,11 +14,10 @@ const rightFill = document.getElementById("rightFill");
 let blackNorm = blackThreshold / 255;
 let pixelNorm = (pixelSize - 2) / (20 - 2);
 
-// Fonction pour inverser les couleurs thermiques pour le slider
+// Couleur inverse pour les sliders
 function inverseThermalColor(norm) {
-  // norm 0 = bas, 1 = haut
-  const hue = 240 - norm * 240; // bleu -> rouge
-  const inverseHue = (hue + 180) % 360; // couleur négative
+  const hue = 240 - norm * 240;
+  const inverseHue = (hue + 180) % 360;
   return `hsl(${inverseHue}, 90%, 50%)`;
 }
 
