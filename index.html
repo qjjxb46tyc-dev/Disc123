@@ -1,13 +1,28 @@
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-<video id="video" autoplay playsinline style="display:none;"></video>
-<canvas id="canvas"></canvas>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixel Webcam</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas"></canvas>
 
-<!-- Sliders verticaux -->
-<div id="leftSlider" class="slider-vertical">
-  <div class="fill" id="leftFill"></div>
-</div>
+  <!-- Sliders verticaux -->
+  <div id="leftSlider" class="slider-vertical">
+    <div class="fill" id="leftFill"></div>
+  </div>
 
-<div id="rightSlider" class="slider-vertical">
-  <div class="fill" id="rightFill"></div>
-</div>
+  <div id="rightSlider" class="slider-vertical">
+    <div class="fill" id="rightFill"></div>
+  </div>
+
+  <!-- Mediapipe scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <!-- Script principal -->
+  <script src="script.js"></script>
+</body>
+</html>
