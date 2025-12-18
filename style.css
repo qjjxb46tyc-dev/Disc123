@@ -1,44 +1,49 @@
+/* Corps de la page */
 body {
   margin: 0;
   overflow: hidden;
   background: black;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
 }
 
+/* Canvas pleine taille */
 canvas {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
-input[type=range] {
+/* Style des jauges verticales */
+.gauge {
   position: absolute;
-  top: 10px;
-  width: 20px;
-  height: 80%;
-  -webkit-appearance: slider-vertical;
-  background: rgba(255,255,255,0.2);
-  border-radius: 10px;
+  width: 30px;
+  height: 90%;
+  top: 5%;
+  border-radius: 15px;
+  background: linear-gradient(to top, #00ffff 50%, #111 50%);
+  touch-action: none;
+  z-index: 10;
 }
 
-#pixelSlider {
-  left: 10px;
-}
+/* Position des jauges */
+#pixelGauge { left: 10px; }
+#thresholdGauge { right: 10px; }
 
-#thresholdSlider {
-  right: 10px;
-}
-
-button#audioBtn {
+/* Bouton audio */
+button {
   position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   padding: 10px 20px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.3);
-  border: none;
-  cursor: pointer;
   font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #444;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+}
+
+button:active {
+  background: #666;
 }
