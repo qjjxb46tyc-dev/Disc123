@@ -1,135 +1,188 @@
-const video = document.getElementById("video");
+// =======================
+// VARIABLES GLOBALES
+// =======================
+
+const video = document.createElement("video");
+video.setAttribute("playsinline", "");
+video.autoplay = true;
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let blackThreshold = 60;
-let pixelSize = 4;
-let step = pixelSize;
+const STEP = 6;
+let pixelSize = 6;
+let blackThreshold = 40;
 
-// Sliders et “fills”
-const leftFill = document.getElementById("leftFill");
-const rightFill = document.getElementById("rightFill");
+// AUDIO
+let audioContext;
+let audioActive = false;
+const activeVoices = []; // tableau pour superposition des cycles
+const maxLayers = 3;     // 3 cycles maximum
 
-// Valeurs normalisées 0-1
-let blackNorm = blackThreshold / 255;
-let pixelNorm = (pixelSize - 2) / (20 - 2);
+// =======================
+// WEBCAM (facultatif)
+// =======================
 
-// Couleur inverse pour les sliders
-function inverseThermalColor(norm) {
-  const hue = 240 - norm * 240;
-  const inverseHue = (hue + 180) % 360;
-  return `hsl(${inverseHue}, 90%, 50%)`;
-}
-
-// Slider vertical interactif
-function setupVerticalSlider(sliderDiv, fillDiv, onUpdate, initialValue=0.5) {
-  let dragging = false;
-
-  sliderDiv.addEventListener("mousedown", e => dragging = true);
-  sliderDiv.addEventListener("touchstart", e => dragging = true);
-
-  document.addEventListener("mouseup", e => dragging = false);
-  document.addEventListener("touchend", e => dragging = false);
-
-  function updateValue(e) {
-    if (!dragging) return;
-    const rect = sliderDiv.getBoundingClientRect();
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    let value = (rect.bottom - y) / rect.height;
-    if (value > 1) value = 1;
-    if (value < 0) value = 0;
-    onUpdate(value);
-  }
-
-  sliderDiv.addEventListener("mousemove", updateValue);
-  sliderDiv.addEventListener("touchmove", updateValue);
-
-  // valeur initiale
-  onUpdate(initialValue);
-}
-
-// Configurer sliders
-setupVerticalSlider(document.getElementById("leftSlider"), leftFill, v => {
-  blackNorm = v;
-  blackThreshold = Math.round(blackNorm * 255);
-  leftFill.style.height = (blackNorm * 100) + "%";
-  leftFill.style.background = inverseThermalColor(blackNorm);
-});
-
-setupVerticalSlider(document.getElementById("rightSlider"), rightFill, v => {
-  pixelNorm = v;
-  pixelSize = Math.round(pixelNorm * (20 - 2) + 2);
-  step = pixelSize;
-  rightFill.style.height = (pixelNorm * 100) + "%";
-  rightFill.style.background = inverseThermalColor(pixelNorm);
-});
-
-// Webcam et Mediapipe
 navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
   video.srcObject = stream;
 });
 
+// =======================
+// MEDIAPIPE SEGMENTATION (facultatif)
+// =======================
+
 const segmentation = new SelfieSegmentation({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}`
+  locateFile: f =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}`
 });
+
 segmentation.setOptions({ modelSelection: 1 });
-
-const maskCanvas = document.createElement("canvas");
-const maskCtx = maskCanvas.getContext("2d");
-
-function thermalColor(r, g, b) {
-  const lum = 0.299*r + 0.587*g + 0.114*b;
-  const hue = 240 - (lum / 255) * 240;
-  return { color: `hsl(${hue}, 90%, 50%)`, lum };
-}
 
 segmentation.onResults(results => {
   const w = video.videoWidth;
   const h = video.videoHeight;
+  if (!w || !h) return;
+
   canvas.width = w;
   canvas.height = h;
-  maskCanvas.width = w;
-  maskCanvas.height = h;
 
   ctx.drawImage(video, 0, 0, w, h);
-  const frameData = ctx.getImageData(0, 0, w, h).data;
+  const frame = ctx.getImageData(0, 0, w, h).data;
 
-  maskCtx.clearRect(0, 0, w, h);
-  maskCtx.drawImage(results.segmentationMask, 0, 0, w, h);
-  const maskData = maskCtx.getImageData(0, 0, w, h).data;
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, w, h);
 
-  ctx.clearRect(0, 0, w, h);
-
-  // Fond
-  for (let y = 0; y < h; y += step) {
-    for (let x = 0; x < w; x += step) {
+  for (let y = 0; y < h; y += STEP) {
+    for (let x = 0; x < w; x += STEP) {
       const i = (y * w + x) * 4;
-      if (maskData[i + 3] < 128) {
-        const { color, lum } = thermalColor(frameData[i], frameData[i+1], frameData[i+2]);
-        ctx.fillStyle = lum < blackThreshold ? "black" : color;
-        ctx.fillRect(x, y, step, step);
-      }
-    }
-  }
+      const r = frame[i];
+      const g = frame[i + 1];
+      const b = frame[i + 2];
+      const brightness = (r + g + b) / 3;
 
-  // Sujet
-  for (let y = 0; y < h; y += step) {
-    for (let x = 0; x < w; x += step) {
-      const i = (y * w + x) * 4;
-      if (maskData[i + 3] > 128) {
-        ctx.fillStyle = "black";
-        ctx.fillRect(x, y, step, step);
-        if (Math.random() < 0.3) {
-          const { color } = thermalColor(frameData[i], frameData[i+1], frameData[i+2]);
-          ctx.fillStyle = color;
-          const offsetX = (Math.random()-0.5)*step/2;
-          const offsetY = (Math.random()-0.5)*step/2;
-          ctx.fillRect(x + step/4 + offsetX, y + step/4 + offsetY, step/2, step/2);
-        }
-      }
+      ctx.fillStyle = brightness < blackThreshold ? "black" : `hsl(${240 - (brightness / 255) * 240}, 85%, 55%)`;
+      ctx.fillRect(x - pixelSize / 2, y - pixelSize / 2, pixelSize, pixelSize);
     }
   }
 });
 
-const camera = new Camera(video, { onFrame: async () => { await segmentation.send({ image: video }); }});
+// =======================
+// CAMERA LOOP
+// =======================
+
+const camera = new Camera(video, {
+  onFrame: async () => {
+    await segmentation.send({ image: video });
+  }
+});
 camera.start();
+
+// =======================
+// AUDIO – 3 CYCLES + FILTRE PEAKING
+// =======================
+
+const audioBtn = document.getElementById("audioBtn");
+
+audioBtn.addEventListener("click", async () => {
+
+  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+  if (!audioActive) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const createVoiceCycle = () => {
+      const micSource = audioContext.createMediaStreamSource(stream);
+
+      // ===== Peaking filter
+      const peaking = audioContext.createBiquadFilter();
+      peaking.type = "peaking";
+      peaking.frequency.value = 500 + Math.random() * 2000; // fréquence aléatoire
+      peaking.Q.value = 1.2;
+      peaking.gain.value = 6; // boost léger
+
+      // ===== Delay + feedback
+      const delayNode = audioContext.createDelay();
+      delayNode.delayTime.value = 0.3;
+
+      const feedbackGain = audioContext.createGain();
+      feedbackGain.gain.value = 0.4;
+
+      const feedbackFilter = audioContext.createBiquadFilter();
+      feedbackFilter.type = "lowpass";
+      feedbackFilter.frequency.value = 1500;
+
+      // boucle feedback : delay → filter → gain → delay
+      delayNode.connect(feedbackFilter);
+      feedbackFilter.connect(feedbackGain);
+      feedbackGain.connect(delayNode);
+
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0; // fondu d’entrée
+
+      // connexions
+      micSource.connect(peaking);
+      peaking.connect(delayNode);
+      delayNode.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const cycle = { micSource, delayNode, feedbackGain, feedbackFilter, gainNode };
+      activeVoices.push(cycle);
+
+      // si plus de 3 cycles, supprimer le plus ancien avec fondu
+      if (activeVoices.length > maxLayers) {
+        const oldest = activeVoices.shift();
+        oldest.gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 2);
+        setTimeout(() => {
+          oldest.micSource.disconnect();
+          oldest.delayNode.disconnect();
+          oldest.feedbackGain.disconnect();
+          oldest.feedbackFilter.disconnect();
+          oldest.gainNode.disconnect();
+        }, 2000);
+      }
+
+      // ===== Animation du cycle (30s)
+      const duration = 30;
+      const startTime = audioContext.currentTime;
+
+      const interval = setInterval(() => {
+        const elapsed = audioContext.currentTime - startTime;
+        const t = Math.min(elapsed / duration, 1);
+
+        // Feedback et filtre progressifs
+        feedbackGain.gain.value = 0.4 + t * 0.55; // jusqu'à 0.95
+        feedbackFilter.frequency.value = 1500 - t * 1200; // jusqu'à 300Hz
+        gainNode.gain.value = 0.5 * t; // fondu d'entrée
+
+        if (t >= 1) clearInterval(interval);
+      }, 100);
+    };
+
+    // Création initiale
+    createVoiceCycle();
+
+    // Nouveau cycle toutes les 30s
+    setInterval(() => {
+      if (!audioActive) return;
+      createVoiceCycle();
+    }, 30000);
+
+    audioActive = true;
+    audioBtn.textContent = "Désactiver son";
+
+  } else {
+    // ===== DÉSACTIVER SON
+    audioActive = false;
+    activeVoices.forEach(cycle => {
+      cycle.micSource.disconnect();
+      cycle.delayNode.disconnect();
+      cycle.feedbackGain.disconnect();
+      cycle.feedbackFilter.disconnect();
+      cycle.gainNode.disconnect();
+    });
+    activeVoices.length = 0;
+
+    audioBtn.textContent = "Activer son";
+  }
+
+});
